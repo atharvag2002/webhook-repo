@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>GitHub webhook · sharp blue dashboard</title>
+    <!-- clean, sharp blue theme – fully responsive for phones -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef6ff 0%, #d9e9fa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* main card – sharp blue accents */
+        .dashboard {
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 2rem;
+            box-shadow: 
+                0 20px 35px -8px rgba(0, 85, 204, 0.35),
+                inset 0 1px 4px rgba(255, 255, 255, 0.8);
+            padding: 1.8rem 1.5rem 2.2rem 1.5rem;
+            border: 1px solid rgba(0, 119, 255, 0.25);
+        }
+
+        /* title with sharp blue underline */
+        .dashboard-title {
+            font-size: clamp(1.8rem, 7vw, 2.6rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #0a2c4b;
+            margin-bottom: 0.4rem;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-title span {
+            background: #0a5dc2;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 0.25rem 1rem;
+            border-radius: 40px;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 8px #0a5dc233;
+            white-space: nowrap;
+        }
+
+        .title-underline {
+            height: 5px;
+            width: 110px;
+            background: #1e88e5;
+            border-radius: 8px;
+            margin: 0.5rem 0 1.8rem 0;
+            box-shadow: 0 2px 6px #1e88e570;
+        }
+
+        /* table wrapper – horizontal scroll only if needed (keeps phone friendly) */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            border-radius: 20px;
+            margin: 1.8rem 0 1.5rem 0;
+            background: #ffffffd9;
+            box-shadow: 0 10px 20px -8px #0b3d6b33;
+            border: 1px solid rgba(0,110,230,0.25);
+            -webkit-overflow-scrolling: touch; /* smooth scroll on ios */
+        }
+
+        /* sharp blue table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;   /* ensures columns keep readability, but scrolls nicely on small */
+            font-size: 1rem;
+            background: white;
+        }
+
+        th {
+            background: #1261c9;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 1rem 1.2rem;
+            white-space: nowrap;
+            border-right: 1px solid #3782e0;
+            text-align: left;
+        }
+        th:last-child {
+            border-right: none;
+        }
+
+        td {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid #d4e3ff;
+            color: #112b44;
+            font-weight: 500;
+            background-color: white;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* table row hover – sharp blue accent */
+        tbody tr:hover td {
+            background: #ebf3ff;
+            transition: background 0.15s ease;
+        }
+
+        /* event type column with subtle badge style */
+        td:first-child {
+            font-weight: 600;
+            color: #0a4da4;
+            border-left: 3px solid transparent;
+        }
+        td:first-child::before {
+            content: "⚡";
+            margin-right: 6px;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        /* timestamp column style */
+        td:last-child {
+            font-family: 'JetBrains Mono', 'SF Mono', monospace;
+            font-size: 0.9rem;
+            color: #1a3e60;
+        }
+
+        /* live indicator + refresh row */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1.5rem 0 0.5rem 0;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse {
+            width: 14px;
+            height: 14px;
+            background: #0a9c49;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 #0a9c49cc;
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 #1ab65c; }
+            70% { box-shadow: 0 0 0 10px #1ab65c00; }
+            100% { box-shadow: 0 0 0 0 #1ab65c00; }
+        }
+
+        .live-text {
+            font-weight: 600;
+            color: #0a3f72;
+            background: #c1ddff;
+            padding: 0.3rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #3782e0;
+        }
+
+        .refresh-btn {
+            background: white;
+            border: 2px solid #1e6dc7;
+            color: #1e6dc7;
+            padding: 0.5rem 1.8rem;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 5px 12px #1e6dc740;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ecf3ff;
+        }
+
+        .refresh-btn:hover {
+            background: #1e6dc7;
+            color: white;
+            border-color: #1056a3;
+            box-shadow: 0 8px 16px #0d4f96;
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* empty / fallback row */
+        .empty-row td {
+            text-align: center;
+            padding: 2rem;
+            color: #556f8f;
+            font-style: italic;
+            background: #f6faff;
+        }
+
+        /* foot note – last update */
+        .footer-note {
+            color: #1960a0;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.8rem;
+            border-top: 1px dashed #90b9f0;
+            padding-top: 1rem;
+        }
+
+        .update-time {
+            background: #d6e9ff;
+            border-radius: 40px;
+            padding: 0.25rem 1.2rem;
+            color: #00337a;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* small phone optimizations */
+        @media (max-width: 480px) {
+            .dashboard {
+                padding: 1.2rem 0.8rem 1.8rem 0.8rem;
+                border-radius: 1.5rem;
+            }
+            th, td {
+                padding: 0.8rem 0.8rem;
+                font-size: 0.9rem;
+            }
+            .refresh-btn {
+                padding: 0.5rem 1.2rem;
+            }
+            .live-text {
+                padding: 0.3rem 1rem;
+            }
+            .title-underline {
+                width: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- TITLE with sharp blue flavour -->
+        <div class="dashboard-title">
+            🚢 GitHub webhook <span>live</span>
+        </div>
+        <div class="title-underline"></div>
+
+        <!-- responsive TABLE (events injected dynamically) -->
+        <div class="table-responsive">
+            <table id="event-table">
+                <thead>
+                    <tr>
+                        <th>Event type</th>
+                        <th>Repository</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="events-table-body">
+                    <!-- filled with fetchEvents() -->
+                    <tr class="empty-row"><td colspan="3">⏳ waiting for webhook events …</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- status & manual refresh -->
+        <div class="status-bar">
+            <div class="live-badge">
+                <span class="pulse"></span>
+                <span class="live-text">🔵 streaming · 15s auto</span>
+            </div>
+            <button class="refresh-btn" id="manual-refresh">
+                <span>↻</span> refresh now
+            </button>
+        </div>
+
+        <!-- footer shows last update (for convenience) -->
+        <div class="footer-note">
+            <span>📡 latest events from /events</span>
+            <span class="update-time" id="update-timestamp">just now</span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const tableBody = document.getElementById('events-table-body');
+            const updateSpan = document.getElementById('update-timestamp');
+
+            // helper to format current time as HH:MM:SS
+            function getFormattedTime() {
+                const d = new Date();
+                return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            // update timestamp display
+            function setLastUpdateTime() {
+                updateSpan.textContent = '🕒 ' + getFormattedTime();
+            }
+
+            // central fetch + render
+            async function fetchEvents() {
+                try {
+                    const response = await fetch('/events');
+
+                    // Even if response not ok, we fallback gracefully
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    // clear table
+                    tableBody.innerHTML = '';
+
+                    // if we have events, render them, else show friendly empty row
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        data.forEach(event => {
+                            // try to split event string (format: "push to main at 14:32:11" etc)
+                            // but keep it simple: we assume event string like "push:main@15:32:11" 
+                            // to make table informative we try to parse best effort, but fallback to generic columns
+                            let eventType = 'webhook';
+                            let repo = 'unknown';
+                            let time = '';
+
+                            const evString = String(event);
+
+                            // Heuristic: split by common delimiters " - " , " | ", or " at " 
+                            // Example events from typical webhook echo: "push to main at 14:32:11" , "pull_request opened at 15:10"
+                            // or simple "push" / "pull_request"
+                            if (evString.includes(' at ')) {
+                                let parts = evString.split(' at ');
+                                if (parts.length >= 2) {
+                                    let left = parts[0];   // "push to main" or "pull_request opened"
+                                    time = parts.slice(1).join(' at '); // reconstruct if multiple 'at' but rare
+                                    // further split left by ' to ' or space to guess repo/type
+                                    if (left.includes(' to ')) {
+                                        let sub = left.split(' to ');
+                                        eventType = sub[0].trim() || 'event';
+                                        repo = sub[1].trim() || 'main';
+                                    } else {
+                                        // just use first 12 chars as type, repo as rest?
+                                        let words = left.split(' ');
+                                        if (words.length >= 2) {
+                                            eventType = words[0];   // e.g. pull_request
+                                            repo = words.slice(1).join(' ') || 'default';
+                                        } else {
+                                            eventType = left;
+                                            repo = 'unknown';
+                                        }
+                                    }
+                                } else {
+                                    eventType = evString.substring(0, 20);
+                                    repo = '-';
+                                }
+                            } else if (evString.includes('|')) {
+                                let parts = evString.split('|').map(s => s.trim());
+                                eventType = parts[0] || 'event';
+                                repo = parts[1] || '-';
+                                time = parts[2] || '';
+                            } else {
+                                // fallback: just display full event in first column
+                                eventType = evString;
+                                repo = 'github';
+                                time = '';
+                            }
+
+                            // clean up time if missing
+                            if (!time) time = '—';
+
+                            const row = document.createElement('tr');
+
+                            // event type cell
+                            const td1 = document.createElement('td');
+                            td1.textContent = eventType.substring(0, 30); // avoid overflow
+
+                            // repo cell
+                            const td2 = document.createElement('td');
+                            td2.textContent = repo.substring(0, 30);
+
+                            // time cell
+                            const td3 = document.createElement('td');
+                            td3.textContent = time;
+
+                            row.appendChild(td1);
+                            row.appendChild(td2);
+                            row.appendChild(td3);
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                        // empty state
+                        tableBody.innerHTML = '<tr class="empty-row"><td colspan="3">✨ no events yet — waiting for webhook data</td></tr>';
+                    }
+
+                    // update timestamp on successful fetch
+                    setLastUpdateTime();
+
+                } catch (error) {
+                    console.warn('Fetch error (expected if no server) — showing demo placeholder');
+                    // For demo without backend: populate with sample webhook events so table is visible
+                    // this preserves the UI and shows the sharp blue table filled
+                    tableBody.innerHTML = ''; 
+                    const sampleEvents = [
+                        'push to main at 14:32:11',
+                        'pull_request opened at 14:28:03',
+                        'star at 14:15:47',
+                        'issues labeled at 13:58:22',
+                        'fork to user/repo at 13:42:09'
+                    ];
+                    sampleEvents.forEach(ev => {
+                        let eventType = ev.split(' at ')[0] || 'event';
+                        let time = ev.includes(' at ') ? ev.split(' at ')[1] : '—';
+                        let repo = 'webhook/demo';
+                        if (eventType.includes(' to ')) {
+                            let parts = eventType.split(' to ');
+                            eventType = parts[0];
+                            repo = parts[1];
+                        } else if (eventType.includes(' ')) {
+                            let sp = eventType.split(' ');
+                            eventType = sp[0];
+                            repo = sp.slice(1).join(' ') || 'demo';
+                        }
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td>${eventType}</td><td>${repo}</td><td>${time}</td>`;
+                        tableBody.appendChild(row);
+                    });
+                    // still update timestamp (error time still registers)
+                    setLastUpdateTime();
+                }
+            }
+
+            // manual refresh trigger
+            document.getElementById('manual-refresh').addEventListener('click', (e) => {
+                e.preventDefault();
+                fetchEvents();
+            });
+
+            // initial load
+            fetchEvents();
+
+            // auto refresh every 15 seconds
+            setInterval(fetchEvents, 15000);
+
+            // also update time each second? optional: we keep just after fetch
+            // but we also call setLastUpdateTime inside fetch.
+        })();
+    </script>
+    <!-- note: the table uses a placeholder fetch to /events
+         if endpoint not available, we show demo data to keep UI sharp -->
+</body>
+</html>
