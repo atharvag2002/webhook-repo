@@ -54,6 +54,7 @@
         (function() {
             const tableBody = document.getElementById('events-table-body');
             const updateSpan = document.getElementById('update-timestamp');
+            const WINDOW_MINUTES = 15;
 
             // helper to format current time as HH:MM:SS
             function getFormattedTime() {
@@ -69,7 +70,7 @@
             // central fetch + render
             async function fetchEvents() {
                 try {
-                    const response = await fetch('/events');
+                    const response = await fetch(`/events?minutes=${WINDOW_MINUTES}`);
 
                     // Even if response not ok, we fallback gracefully
                     if (!response.ok) {

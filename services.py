@@ -17,11 +17,34 @@ collection = db[MONGO_COLLECTION]
 # Indian timezone (UTC+5:30)
 INDIAN_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
 
+
 def convert_to_indian_time(utc_datetime):
     """Convert UTC datetime to Indian timezone"""
     if utc_datetime.tzinfo is None:
         utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
     return utc_datetime.astimezone(INDIAN_TIMEZONE)
+
+
+def parse_github_timestamp(raw_timestamp: str) -> datetime:
+   
+    if not raw_timestamp:
+        raise ValueError("Missing timestamp")
+
+    ts = raw_timestamp.strip()
+
+    # Normalize trailing 'Z' (Zulu / UTC) to an explicit +00:00 offset
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+
+    dt = datetime.fromisoformat(ts)
+
+    # Ensure we are always working in UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    return dt
 
 
 # ---- Business Logic ----
@@ -31,14 +54,14 @@ def process_event(event_type, payload):
 
         author = payload["pusher"]["name"]
         to_branch = payload["ref"].split("/")[-1]
-        timestamp = payload["head_commit"]["timestamp"]
+        raw_timestamp = payload["head_commit"]["timestamp"]
 
         document = {
             "event_type": "push",
             "author": author,
             "from_branch": None,
             "to_branch": to_branch,
-            "timestamp": datetime.fromisoformat(timestamp)
+            "timestamp": parse_github_timestamp(raw_timestamp),
         }
 
         collection.insert_one(document)
@@ -53,33 +76,46 @@ def process_event(event_type, payload):
         to_branch = pr["base"]["ref"]
 
         if action == "opened":
-            timestamp = pr["created_at"]
+            raw_timestamp = pr["created_at"]
 
             document = {
                 "event_type": "pull_request",
                 "author": author,
                 "from_branch": from_branch,
                 "to_branch": to_branch,
-                "timestamp": datetime.fromisoformat(timestamp)
+                "timestamp": parse_github_timestamp(raw_timestamp),
             }
 
             collection.insert_one(document)
 
         elif action == "closed" and pr["merged"]:
-            timestamp = pr["merged_at"]
+            raw_timestamp = pr["merged_at"]
 
             document = {
                 "event_type": "merge",
                 "author": author,
                 "from_branch": from_branch,
                 "to_branch": to_branch,
-                "timestamp": datetime.fromisoformat(timestamp)
+                "timestamp": parse_github_timestamp(raw_timestamp),
             }
 
             collection.insert_one(document)
 
-def get_events():
-    documents = collection.find().sort("timestamp", -1)
+
+def get_events(minutes=None):
+    try:
+        minutes_value = int(minutes) if minutes is not None else 15
+    except (TypeError, ValueError):
+        minutes_value = 15
+
+    if minutes_value <= 0:
+        minutes_value = 15
+
+    cutoff_utc = datetime.now(timezone.utc) - timedelta(minutes=minutes_value)
+
+    documents = collection.find({"timestamp": {"$gte": cutoff_utc}}).sort(
+        "timestamp", -1
+    )
 
     result = []
 
@@ -93,10 +129,14 @@ def get_events():
         else:
             continue
 
-        result.append({
-            "event_type": doc["event_type"],
-            "message": message,
-            "timestamp": convert_to_indian_time(doc["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
-        })
+        result.append(
+            {
+                "event_type": doc["event_type"],
+                "message": message,
+                "timestamp": convert_to_indian_time(doc["timestamp"]).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+            }
+        )
 
     return result

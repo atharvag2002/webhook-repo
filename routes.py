@@ -47,7 +47,8 @@ def register_routes(app):
     # polling api 
     @app.route("/events", methods=["GET"])
     def get_event():
-        return jsonify(get_events())
+        minutes_param = request.args.get("minutes")
+        return jsonify(get_events(minutes_param))
     
     
     @app.route("/dashboard")    
